@@ -32,15 +32,25 @@ function sparqlProxy (options) {
   }
 
   let queryOperation = options.queryOperation || 'postQueryDirect'
-  const client = new SparqlHttpClient({ endpointUrl: options.endpointUrl })
+  const client = new SparqlHttpClient({ endpointUrl: options.endpointUrl, updateUrl: options.endpointUrl + '/update' })
 
   return (req, res, next) => {
     let query
+    let isUpdate = false
+    let contentType = 'application/sparql-query'
 
     if (req.method === 'GET') {
       query = req.query.query
+      if( req.query.update ) {
+        isUpdate = true
+        contentType = 'application/sparql-update'
+      }
     } else if (req.method === 'POST') {
       query = req.body.query || req.body
+      if( req.body.update ) {
+        isUpdate = true
+        contentType = 'application/sparql-update'
+      }
     } else {
       next()
       return
@@ -55,7 +65,7 @@ function sparqlProxy (options) {
     }
 
     // merge configuration query options with request query options
-    const currentQueryOptions = defaults(cloneDeep(queryOptions), { accept: req.headers.accept })
+    var currentQueryOptions = defaults(cloneDeep(queryOptions), { accept: req.headers.accept, update: isUpdate, contentType: contentType})
 
     const timeStart = Date.now()
     return client[queryOperation](query, currentQueryOptions).then((result) => {
